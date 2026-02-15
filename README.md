@@ -13,6 +13,7 @@ Parse Karnataka electoral roll PDFs into structured ward-level CSVs using Gemini
 
 1. `list_downloader.py`  
    Downloads PDFs into `data_list_pdfs/<corp>_<ward>/`.
+   The first list in list_downloader needs to be edited first, to choose which wards to target.
 
 2. `parse_doc.py`  
    Reads PDFs recursively from `data_list_pdfs/`, extracts data, writes:
