@@ -1,0 +1,10 @@
+.env
+.DS_Store
+output*/
+logs/
+__pycache__/
+*.pyc
+old/
+AGENTS.md
+to_send/
+data_list_pdfs/
