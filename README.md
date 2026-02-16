@@ -52,8 +52,8 @@ GEMINI_API_KEY=your_key_here
 # GEMINI_API_KEYS=key1,key2,key3
 
 # Optional parser tuning:
-# MAX_CONCURRENT=12
-# PDF_PREFETCH=1
+# MAX_CONCURRENT=200
+# PDF_PREFETCH=15
 # INPUT_DIR=data_list_pdfs
 # OUTPUT_DIR=output_list_pdfs
 # LOG_ROOT_DIR=logs
