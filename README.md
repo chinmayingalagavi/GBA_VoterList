@@ -59,7 +59,7 @@ GEMINI_API_KEY=your_key_here
 # LOG_ROOT_DIR=logs
 ```
 
-Very slow if you are not doing many at a time!
+Very slow if you are not doing many at a time! Recommend MAX_CONCURRENT being at least 200, and PDF_PREFETCH being at least 15.
 
 Notes:
 - If `GEMINI_API_KEYS` is set, parser rotates keys.
