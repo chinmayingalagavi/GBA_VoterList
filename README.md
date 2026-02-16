@@ -59,6 +59,8 @@ GEMINI_API_KEY=your_key_here
 # LOG_ROOT_DIR=logs
 ```
 
+Very slow if you are not doing many at a time!
+
 Notes:
 - If `GEMINI_API_KEYS` is set, parser rotates keys.
 - `MAX_CONCURRENT` is global target concurrency; per-active-PDF page concurrency is derived from it.
@@ -123,6 +125,8 @@ Example:
 serial_number, epic_number, name, relation_type, relation_name, house_number,
 age, gender, section_raw, part, ward, corporation, pincode, pollingname, pollingaddress
 ```
+
+I used `gemini-flash-3-preview` to do the lists and `gemini-pro-3-preview` to do the cover page, since I wanted very high accuracy for the main street address from the cover.
 
 Excel note:
 - `compile_to_send.py` prefixes `house_number` with `' ` (apostrophe + space) to prevent date auto-conversion (e.g., `2-3`).
