@@ -130,7 +130,7 @@ starting_serial_number, ending_serial_number, male, female, third_gender, total
 
 `part` is parsed from the PDF filename (`{corp}_{ward}_{part}_E.pdf`), not from the cover.
 
-I used `gemini-flash-3-preview` to do the lists and `gemini-pro-3-preview` to do the cover page, since I wanted very high accuracy for the main street address from the cover.
+I used `gemini-3-flash-preview` to do the lists and `gemini-3.1-pro-preview` to do the cover page, since I wanted very high accuracy for the main street address from the cover.
 
 Excel note:
 - `compile_to_send.py` prefixes `house_number` with `' ` (apostrophe + space) to prevent date auto-conversion (e.g., `2-3`).
