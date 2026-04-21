@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Literal
 
 BASE_URL = (
-    "https://gba.karnataka.gov.in/electionfiles/ENGLISH/"
-    "{corp}_{ward}_{part}_EPUB.pdf"
+    "https://gba.karnataka.gov.in/electionfiles/ENGLISH_F/"
+    "{corp}_{ward}_{part}_E.pdf"
 )
 
 # central = 1
@@ -33,7 +33,9 @@ BASE_URL = (
 
 # Add list of wards to WARD_TARGETS. Eg: WARD_TARGETS = ["5_40", "1_10"]
 
-WARD_TARGETS = []
+WARD_TARGETS = [
+    "3_5"
+]
 
 
 
@@ -182,7 +184,7 @@ def download_parts_for_target(
     def submit_part(
         executor: ThreadPoolExecutor, part: int
     ) -> Future[tuple[int, Literal["ok", "miss"], str, str]]:
-        filename = f"{corp}_{ward}_{part}_EPUB.pdf"
+        filename = f"{corp}_{ward}_{part}_E.pdf"
         url = BASE_URL.format(corp=corp, ward=ward, part=part)
         dest = out_dir / filename
 

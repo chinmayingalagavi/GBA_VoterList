@@ -21,7 +21,7 @@ except Exception:  # pragma: no cover - optional dependency at runtime
 
 # --- Model ---
 MODEL_NAME = "gemini-3-flash-preview"
-COVER_MODEL_NAME = "gemini-3-pro-preview"
+COVER_MODEL_NAME = "gemini-3.1-pro-preview"
 RETRY_SLEEP_SECONDS = 0.1
 RETRY_JITTER_SECONDS = 0.05
 SAVE_RAW_PAGE_LOGS = False
@@ -70,18 +70,18 @@ class PageData(BaseModel):
 
 
 class CoverMetadata(BaseModel):
-    part: str = Field(description="Part No. only, e.g. '22'")
+    state_legislative: str = Field(description="Karnataka State Legislative Assembly number and name, e.g. '171-Padmanabhanagar Legislative Assembly Constituency'")
+
     ward: str = Field(
-        description="Ward No. and Name, e.g. '40 - Mahalakshmipuram'"
+        description="1. Ward No. and Name, e.g. '40 - Mahalakshmipuram'"
     )
-    corporation: str = Field(
-        description="Corporation name, e.g. 'Bengaluru West City Corporation'"
-    )
-    pincode: str = Field(description="Pin Code")
     pollingname: str = Field(
-        description="Polling Station No. and Name"
+        description="Polling Station No. and Name (first line of the 'Polling Station No. and Address' block — the station number plus the venue/building name, before the street address)"
     )
-    pollingaddress: str = Field(description="Polling Station Address")
+    pollingaddress: str = Field(
+        default="",
+        description="Polling Station Address (subsequent lines of the 'Polling Station No. and Address' block — the physical street address, locality, etc)"
+    )
     starting_serial_number: str = Field(
         default="",
         description="Starting Serial Number",
@@ -90,13 +90,13 @@ class CoverMetadata(BaseModel):
         default="",
         description="Ending Serial Number",
     )
-    male: str = Field(default="", description="Net Voter Count, Male")
-    female: str = Field(default="", description="Net Voter Count, Female")
+    male: str = Field(default="", description="Net Voters Count, Male")
+    female: str = Field(default="", description="Net Voters Count, Female")
     third_gender: str = Field(
         default="",
-        description="Net Voter Count, Third Gender",
+        description="Net Voters Count, Third Gender",
     )
-    total: str = Field(default="", description="Net Voter Count, Total")
+    total: str = Field(default="", description="Net Voters Count, Total")
 
 
 # --- Prompts ---
@@ -124,21 +124,25 @@ when absent.
 
 USER_PROMPT = "Extract all voter records from this electoral roll page. Return the section header and every voter entry."
 COVER_USER_PROMPT = (
-    "Extract only these fields from this cover page: "
-    "part, ward, corporation, pincode, pollingname, pollingaddress, "
+    "Extract only these fields from the cover pages. The metadata may span "
+    "one or two pages — scan all provided pages and combine the information: "
+    "state_legislative, ward, pollingname, pollingaddress, "
     "starting_serial_number, ending_serial_number, male, female, third_gender, total."
 )
 
 COVER_SYSTEM_PROMPT = """\
-You are extracting metadata from the cover page of a Karnataka electoral roll PDF.
+You are extracting metadata from the cover of a Karnataka electoral roll PDF.
+The cover may be one or two pages. Combine information across the pages provided.
 
 Return strict JSON with:
-- part: the part number only (e.g., "22")
-- ward: ward number and name (e.g., "40 - Mahalakshmipuram")
-- corporation: corporation name (e.g., "Bengaluru West City Corporation")
-- pincode: pin code only (digits)
-- pollingname: value from "Polling Station No. and Name"
-- pollingaddress: value from "Polling Station Address"
+- state_legislative: Karnataka Legislative Assembly Constituency number and name \
+(e.g., "171-Padmanabhanagar Legislative Assembly Constituency")
+- ward: ward number and name (e.g., "5 - Kane Muneshwara Ward")
+- pollingname: Polling Station No. and Name — the first line of the "Polling Station No. and Address" block, \
+containing the station number and venue/school/building name (e.g., "15 - ABHYAS TECHNO SCHOOL, ROOM NO-1")
+- pollingaddress: Polling Station Address — the remaining line(s) of that same block, \
+containing the street address, locality, city, and pincode (e.g., "KALKERE, KALKERE, BANGALORE-560113"). \
+Return empty string if the entire block fits on one line with no separable address.
 - starting_serial_number: value for "Starting Serial Number"
 - ending_serial_number: value for "Ending Serial Number"
 - male: value for "Male"
@@ -146,7 +150,7 @@ Return strict JSON with:
 - third_gender: value for "Third Gender" (or equivalent label if present)
 - total: value for "Total"
 
-Do not include labels such as "Part No." or "Ward No. and Name".
+Do not include the label text itself (e.g., "Ward No. and Name :", "Polling Station No. and Address :").
 If a field is absent, return an empty string for that field.
 If text is uncertain, return the closest readable value from the page.
 """

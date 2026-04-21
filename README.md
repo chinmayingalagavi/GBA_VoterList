@@ -6,7 +6,7 @@ Parse Karnataka electoral roll PDFs into structured ward-level CSVs using Gemini
 
 - Downloads electoral roll PDFs by corp/ward/part pattern.
 - Parses each PDF page into canonical JSON cache files.
-- Extracts cover-page metadata (part, ward, corporation, polling details, counts).
+- Extracts cover-page metadata (ward, assembly constituency, polling station, voter counts).
 - Compiles final ward-level CSVs for sharing.
 
 ## Current Pipeline
@@ -94,7 +94,8 @@ python parse_doc.py
 ```
 
 Parser behavior:
-- Skips page 2 (maps/photos); processes page 3 onward.
+- Sends pages 1+2 together to the cover extractor (metadata sometimes spans both).
+- Skips page 2 (maps/photos) for voter extraction; processes page 3 onward.
 - Uses existing cached page JSON to resume cleanly.
 - Re-calls cover extraction only if `cover_metadata.json` is missing/invalid.
 - Input discovery is recursive and only matches `*.pdf` (not `.pdf.tmp`).
@@ -123,8 +124,11 @@ Example:
 
 ```text
 serial_number, epic_number, name, relation_type, relation_name, house_number,
-age, gender, section_raw, part, ward, corporation, pincode, pollingname, pollingaddress
+age, gender, section_raw, part, ward, state_legislative, pollingname, pollingaddress,
+starting_serial_number, ending_serial_number, male, female, third_gender, total
 ```
+
+`part` is parsed from the PDF filename (`{corp}_{ward}_{part}_E.pdf`), not from the cover.
 
 I used `gemini-flash-3-preview` to do the lists and `gemini-pro-3-preview` to do the cover page, since I wanted very high accuracy for the main street address from the cover.
 
@@ -154,4 +158,7 @@ Excel note:
 
 ### Acknowledgements
 Vibecoded with Claude Code Opus 4.6 and Codex 5.3.
+
+---
+_Last updated: 2026-04-21 — adjusted cover metadata fields (new `state_legislative`; split `pollingname` / `pollingaddress`; dropped `corporation`/`pincode`; `part` now derived from filename) and updated download URLs to the new `ENGLISH_F/..._E.pdf` pattern._
 

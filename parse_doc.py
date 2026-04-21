@@ -48,11 +48,22 @@ CSV_COLUMNS = [
     "section_raw",
     "part",
     "ward",
-    "corporation",
-    "pincode",
+    "state_legislative",
     "pollingname",
     "pollingaddress",
+    "starting_serial_number",
+    "ending_serial_number",
+    "male",
+    "female",
+    "third_gender",
+    "total",
 ]
+
+
+def part_from_stem(stem: str) -> str:
+    """Extract the part number from a PDF stem like '5_21_7_E' -> '7'."""
+    match = re.match(r"^\d+_\d+_(\d+)_E$", stem)
+    return match.group(1) if match else ""
 
 
 def _env_int(name: str, default: int) -> int:
@@ -116,6 +127,17 @@ def extract_single_page_pdf(reader: PyPDF2.PdfReader, page_index: int) -> bytes:
     """Extract one page from a PdfReader as a standalone PDF byte buffer."""
     writer = PyPDF2.PdfWriter()
     writer.add_page(reader.pages[page_index])
+    buf = io.BytesIO()
+    writer.write(buf)
+    return buf.getvalue()
+
+
+def extract_pages_pdf(reader: PyPDF2.PdfReader, page_indices: list[int]) -> bytes:
+    """Extract multiple pages from a PdfReader as one combined PDF byte buffer."""
+    writer = PyPDF2.PdfWriter()
+    for idx in page_indices:
+        if 0 <= idx < len(reader.pages):
+            writer.add_page(reader.pages[idx])
     buf = io.BytesIO()
     writer.write(buf)
     return buf.getvalue()
@@ -195,7 +217,9 @@ def get_cover_metadata(
     if cached is not None:
         return cached
 
-    cover_pdf_bytes = extract_single_page_pdf(reader, 0)
+    # Cover metadata may span pages 1 and 2 in newer electoral roll formats
+    # (the "Number of Voters" table frequently overflows to page 2).
+    cover_pdf_bytes = extract_pages_pdf(reader, [0, 1])
     extracted = extract_cover_metadata(
         clients, cover_pdf_bytes, base_index=cover_key_seed
     )
@@ -208,6 +232,7 @@ def rebuild_csv_from_pages(
     page_indices: list[int],
     csv_path: Path,
     cover_meta: CoverMetadata,
+    part: str,
 ) -> None:
     """Rebuild CSV atomically from all available canonical page outputs."""
     tmp_path = csv_path.with_suffix(".csv.tmp")
@@ -231,12 +256,17 @@ def rebuild_csv_from_pages(
                         "age": v.age,
                         "gender": normalize_gender(v.gender),
                         "section_raw": page_data.section_raw,
-                        "part": cover_meta.part,
+                        "part": part,
                         "ward": cover_meta.ward,
-                        "corporation": cover_meta.corporation,
-                        "pincode": cover_meta.pincode,
+                        "state_legislative": cover_meta.state_legislative,
                         "pollingname": cover_meta.pollingname,
                         "pollingaddress": cover_meta.pollingaddress,
+                        "starting_serial_number": cover_meta.starting_serial_number,
+                        "ending_serial_number": cover_meta.ending_serial_number,
+                        "male": cover_meta.male,
+                        "female": cover_meta.female,
+                        "third_gender": cover_meta.third_gender,
+                        "total": cover_meta.total,
                     }
                 )
     tmp_path.replace(csv_path)
@@ -274,6 +304,7 @@ async def process_pages(
     log_dir: Path | None,
     pdf_name: str,
     page_concurrency: int,
+    part: str,
 ) -> None:
     """Process pages with a rolling worker queue and end-of-run CSV rebuild."""
     semaphore = asyncio.Semaphore(page_concurrency)
@@ -284,7 +315,9 @@ async def process_pages(
     if not pending:
         logging.info("[%s] All pages already completed.", pdf_name)
         if not csv_path.exists():
-            rebuild_csv_from_pages(page_data_dir, page_indices, csv_path, cover_meta)
+            rebuild_csv_from_pages(
+                page_data_dir, page_indices, csv_path, cover_meta, part
+            )
             logging.info("[%s] Built missing CSV from cached pages.", pdf_name)
         return
 
@@ -381,13 +414,21 @@ async def process_pages(
 
     # Build/update per-PDF CSV once per PDF run (not per progress chunk).
     if wrote_new_pages or not csv_path.exists():
-        rebuild_csv_from_pages(page_data_dir, page_indices, csv_path, cover_meta)
+        rebuild_csv_from_pages(
+            page_data_dir, page_indices, csv_path, cover_meta, part
+        )
         logging.info("[%s] Rebuilt CSV after page processing completed.", pdf_name)
 
 
 def discover_pdf_inputs(input_dir: Path) -> list[Path]:
-    """Return all PDFs under input_dir in deterministic order."""
-    return sorted(input_dir.rglob("*.pdf"))
+    """Return all PDFs under input_dir in deterministic order.
+
+    Skips any PDF whose path includes a folder named 'ignore'.
+    """
+    return sorted(
+        p for p in input_dir.rglob("*.pdf")
+        if "ignore" not in p.relative_to(input_dir).parts
+    )
 
 
 def ward_key_for_pdf(pdf_path: Path, input_dir: Path) -> str:
@@ -396,7 +437,7 @@ def ward_key_for_pdf(pdf_path: Path, input_dir: Path) -> str:
     if str(rel_parent) not in ("", "."):
         return str(rel_parent)
 
-    match = re.match(r"^(\d+)_(\d+)_\d+_EPUB$", pdf_path.stem)
+    match = re.match(r"^(\d+)_(\d+)_\d+_E$", pdf_path.stem)
     if match:
         return f"{match.group(1)}_{match.group(2)}"
     return "unknown_ward"
@@ -434,18 +475,19 @@ def process_one_pdf(
     cover_meta = get_cover_metadata(
         clients, reader, cover_metadata_path, cover_key_seed
     )
+    part = part_from_stem(pdf_path.stem)
     logging.info(
         (
-            "[%s] Cover metadata: part='%s', ward='%s', corporation='%s', "
-            "pincode='%s', pollingname='%s', start='%s', end='%s', "
+            "[%s] Cover metadata: part='%s', ward='%s', state_legislative='%s', "
+            "pollingname='%s', pollingaddress='%s', start='%s', end='%s', "
             "male='%s', female='%s', third_gender='%s', total='%s'"
         ),
         pdf_path.name,
-        cover_meta.part,
+        part,
         cover_meta.ward,
-        cover_meta.corporation,
-        cover_meta.pincode,
+        cover_meta.state_legislative,
         cover_meta.pollingname,
+        cover_meta.pollingaddress,
         cover_meta.starting_serial_number,
         cover_meta.ending_serial_number,
         cover_meta.male,
@@ -480,6 +522,7 @@ def process_one_pdf(
             log_dir,
             pdf_path.name,
             page_concurrency,
+            part,
         )
     )
 

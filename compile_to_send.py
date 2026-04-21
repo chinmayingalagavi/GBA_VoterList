@@ -36,11 +36,22 @@ CSV_COLUMNS = [
     "section_raw",
     "part",
     "ward",
-    "corporation",
-    "pincode",
+    "state_legislative",
     "pollingname",
     "pollingaddress",
+    "starting_serial_number",
+    "ending_serial_number",
+    "male",
+    "female",
+    "third_gender",
+    "total",
 ]
+
+
+def part_from_stem(stem: str) -> str:
+    """Extract the part number from a PDF stem like '5_21_7_E' -> '7'."""
+    match = re.match(r"^\d+_\d+_(\d+)_E$", stem)
+    return match.group(1) if match else ""
 
 
 def natural_key(text: str) -> list[object]:
@@ -119,7 +130,7 @@ def corporation_name_from_ward_key(ward_key: str) -> str:
 def merge_ward_csvs(ward_dir: Path, output_dir: Path) -> tuple[Path, int, int]:
     """Build one ward CSV from per-PDF cached page JSON + cover metadata."""
     pdf_dirs = sorted(
-        [p for p in ward_dir.iterdir() if p.is_dir() and p.name.endswith("_EPUB")],
+        [p for p in ward_dir.iterdir() if p.is_dir() and p.name.endswith("_E")],
         key=lambda p: natural_key(p.name),
     )
     if not pdf_dirs:
@@ -160,6 +171,7 @@ def merge_ward_csvs(ward_dir: Path, output_dir: Path) -> tuple[Path, int, int]:
                 continue
 
             source_count += 1
+            part = part_from_stem(pdf_dir.name)
             for page_path in page_paths:
                 try:
                     page_data = json.loads(page_path.read_text(encoding="utf-8"))
@@ -187,12 +199,21 @@ def merge_ward_csvs(ward_dir: Path, output_dir: Path) -> tuple[Path, int, int]:
                         "age": voter.get("age", ""),
                         "gender": normalize_gender(str(voter.get("gender", ""))),
                         "section_raw": section_raw,
-                        "part": cover.get("part", ""),
+                        "part": part,
                         "ward": cover.get("ward", ""),
-                        "corporation": cover.get("corporation", ""),
-                        "pincode": cover.get("pincode", ""),
+                        "state_legislative": cover.get("state_legislative", ""),
                         "pollingname": cover.get("pollingname", ""),
                         "pollingaddress": cover.get("pollingaddress", ""),
+                        "starting_serial_number": cover.get(
+                            "starting_serial_number", ""
+                        ),
+                        "ending_serial_number": cover.get(
+                            "ending_serial_number", ""
+                        ),
+                        "male": cover.get("male", ""),
+                        "female": cover.get("female", ""),
+                        "third_gender": cover.get("third_gender", ""),
+                        "total": cover.get("total", ""),
                     }
                     writer.writerow(row)
                     total_rows += 1
