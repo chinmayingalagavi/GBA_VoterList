@@ -208,6 +208,7 @@ def extract_page(
         response_mime_type="application/json",
         response_schema=PageData,
         system_instruction=SYSTEM_PROMPT,
+        thinking_config=types.ThinkingConfig(thinking_level="minimal"),
     )
 
     last_error = None

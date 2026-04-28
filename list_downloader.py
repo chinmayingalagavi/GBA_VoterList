@@ -34,10 +34,8 @@ BASE_URL = (
 # Add list of wards to WARD_TARGETS. Eg: WARD_TARGETS = ["5_40", "1_10"]
 
 WARD_TARGETS = [
-    "3_5"
+    "3_34"
 ]
-
-
 
 
 def download_pdf_with_curl(url: str, dest: Path, timeout: int = 120) -> Literal["ok", "miss"]:
